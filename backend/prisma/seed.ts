@@ -1,0 +1,1 @@
+export { DEFAULT_CATEGORIES } from "../src/constants/defaultCategories";
