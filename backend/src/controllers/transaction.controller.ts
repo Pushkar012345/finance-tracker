@@ -67,7 +67,7 @@ export async function getCategorySummary(
     const categories = await prisma.category.findMany({
       where: { id: { in: categoryIds } },
     });
-    const categoryMap = new Map(categories.map((c: { id: string }) => [c.id, c]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
     const summary = spendByCategory
       .map((row: { categoryId: string; _sum: { amount: unknown } }) => ({
