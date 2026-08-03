@@ -13,18 +13,52 @@ export async function listBudgets(
   try {
     const { month, year } = req.validatedQuery ?? {};
     const now = new Date();
+    const targetMonth = month ?? now.getMonth() + 1;
+    const targetYear = year ?? now.getFullYear();
 
     const budgets = await prisma.budget.findMany({
       where: {
         userId: req.userId,
-        month: month ?? now.getMonth() + 1,
-        year: year ?? now.getFullYear(),
+        month: targetMonth,
+        year: targetYear,
       },
       include: { category: true },
       orderBy: { category: { name: "asc" } },
     });
 
-    res.json(budgets);
+    // Aggregate actual spend per category for the same month/year so the
+    // frontend can render progress bars without a second round trip.
+    const periodStart = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const periodEnd = new Date(Date.UTC(targetYear, targetMonth, 1));
+
+    const spendByCategory = await prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        userId: req.userId,
+        type: "EXPENSE",
+        categoryId: { in: budgets.map((b: { categoryId: string }) => b.categoryId) },
+        date: { gte: periodStart, lt: periodEnd },
+      },
+      _sum: { amount: true },
+    });
+
+    const spentMap = new Map<string, number>(
+      spendByCategory.map((row: { categoryId: string; _sum: { amount: unknown } }) => [
+        row.categoryId,
+        Number(row._sum.amount ?? 0),
+      ])
+    );
+
+    const budgetsWithProgress = budgets.map((budget: { categoryId: string; amount: unknown }) => {
+      const limit = Number(budget.amount);
+      const spent = spentMap.get(budget.categoryId) ?? 0;
+      const remaining = limit - spent;
+      const percentUsed = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+
+      return { ...budget, spent, remaining, percentUsed };
+    });
+
+    res.json(budgetsWithProgress);
   } catch (err) {
     next(err);
   }

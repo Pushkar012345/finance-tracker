@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { getTransactions } from "../lib/transactions";
 import { getCategoryIcon } from "../lib/categoryIcons";
 import AddTransactionForm from "../components/AddTransactionForm";
+import BudgetProgress from "../components/BudgetProgress";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -100,6 +101,8 @@ export default function DashboardPage() {
                 {formatCurrency(netSaved)}
               </span>
             </div>
+
+            <BudgetProgress />
 
             {/* Transaction list */}
             <div className="flex items-center justify-between mb-3">
