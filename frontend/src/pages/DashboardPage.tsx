@@ -5,6 +5,7 @@ import { getTransactions } from "../lib/transactions";
 import { getCategoryIcon } from "../lib/categoryIcons";
 import AddTransactionForm from "../components/AddTransactionForm";
 import BudgetProgress from "../components/BudgetProgress";
+import GoalsList from "../components/GoalsList";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -103,6 +104,8 @@ export default function DashboardPage() {
             </div>
 
             <BudgetProgress />
+
+            <GoalsList />
 
             {/* Transaction list */}
             <div className="flex items-center justify-between mb-3">

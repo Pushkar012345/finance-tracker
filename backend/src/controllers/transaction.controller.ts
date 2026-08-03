@@ -39,6 +39,50 @@ export async function listTransactions(
   }
 }
 
+export async function getCategorySummary(
+  req: AuthRequest & ValidatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { month, year } = req.validatedQuery ?? {};
+    const now = new Date();
+    const targetMonth = month ?? now.getMonth() + 1;
+    const targetYear = year ?? now.getFullYear();
+
+    const periodStart = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const periodEnd = new Date(Date.UTC(targetYear, targetMonth, 1));
+
+    const spendByCategory = await prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        userId: req.userId,
+        type: "EXPENSE",
+        date: { gte: periodStart, lt: periodEnd },
+      },
+      _sum: { amount: true },
+    });
+
+    const categoryIds = spendByCategory.map((row: { categoryId: string }) => row.categoryId);
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+    });
+    const categoryMap = new Map(categories.map((c: { id: string }) => [c.id, c]));
+
+    const summary = spendByCategory
+      .map((row: { categoryId: string; _sum: { amount: unknown } }) => ({
+        categoryId: row.categoryId,
+        categoryName: categoryMap.get(row.categoryId)?.name ?? "Unknown",
+        total: Number(row._sum.amount ?? 0),
+      }))
+      .sort((a: { total: number }, b: { total: number }) => b.total - a.total);
+
+    res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getTransaction(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = getIdParam(req);
