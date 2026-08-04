@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Target, Plus } from "lucide-react";
 import { getGoals, contributeToGoal } from "../lib/goals";
+import AddGoalForm from "./AddGoalForm";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -140,6 +141,8 @@ export default function GoalsList() {
           })}
         </div>
       )}
+
+      <AddGoalForm />
     </div>
   );
 }

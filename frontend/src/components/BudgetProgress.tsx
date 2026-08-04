@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getBudgets } from "../lib/budgets";
 import { getCategoryIcon } from "../lib/categoryIcons";
+import AddBudgetForm from "./AddBudgetForm";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -95,6 +96,8 @@ export default function BudgetProgress() {
           })}
         </div>
       )}
+
+      <AddBudgetForm />
     </div>
   );
 }
