@@ -7,6 +7,7 @@ import {
   listTransactionsQuerySchema,
   categorySummaryQuerySchema,
 } from "../validators/transaction.validator";
+import { categorizeSchema } from "../validators/ai.validator";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -18,6 +19,11 @@ router.get(
   "/summary/by-category",
   validateQuery(categorySummaryQuerySchema),
   transactionController.getCategorySummary
+);
+router.post(
+  "/categorize",
+  validateBody(categorizeSchema),
+  transactionController.categorizeTransaction
 );
 router.get("/:id", transactionController.getTransaction);
 router.post("/", validateBody(createTransactionSchema), transactionController.createTransaction);

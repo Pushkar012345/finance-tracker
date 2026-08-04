@@ -21,4 +21,15 @@ export const env = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
   },
   frontendOrigin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
+  gemini: {
+    // Optional on purpose — the app should still boot and every other
+    // feature should keep working if this isn't set yet. The AI
+    // categorization endpoint checks for this itself and returns a clear
+    // 503 rather than crashing the whole server on startup.
+    apiKey: process.env.GEMINI_API_KEY,
+    // gemini-2.5-flash was retired for new API keys — gemini-3.5-flash-lite
+    // is Google's current recommended model for classification/routing
+    // tasks like this one (low-latency, cost-optimized, GA as of Aug 2026).
+    model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite",
+  },
 };

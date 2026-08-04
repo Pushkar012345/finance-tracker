@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Sparkles } from "lucide-react";
 import { getCategories } from "../lib/categories";
 import { createTransaction } from "../lib/transactions";
 import { getCategoryIcon } from "../lib/categoryIcons";
+import { categorizeTransaction } from "../lib/ai";
 
 export default function AddTransactionForm() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +14,8 @@ export default function AddTransactionForm() {
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState("");
+  const [aiSuggested, setAiSuggested] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -38,12 +41,27 @@ export default function AddTransactionForm() {
     },
   });
 
+  const categorizeMutation = useMutation({
+    mutationFn: categorizeTransaction,
+    onSuccess: (result) => {
+      setCategoryId(result.categoryId);
+      setAiSuggested(true);
+      setAiError("");
+    },
+    onError: (err: any) => {
+      const message = err?.response?.data?.error;
+      setAiError(message || "Couldn't get an AI suggestion. Pick a category manually.");
+    },
+  });
+
   function resetForm() {
     setAmount("");
     setDescription("");
     setCategoryId("");
     setDate(new Date().toISOString().slice(0, 10));
     setError("");
+    setAiSuggested(false);
+    setAiError("");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -62,6 +80,15 @@ export default function AddTransactionForm() {
       date,
       categoryId,
     });
+  }
+
+  function handleAutoCategorize() {
+    setAiError("");
+    if (!description.trim()) {
+      setAiError("Type a description first.");
+      return;
+    }
+    categorizeMutation.mutate(description.trim());
   }
 
   if (!isOpen) {
@@ -93,6 +120,7 @@ export default function AddTransactionForm() {
             onClick={() => {
               setType("EXPENSE");
               setCategoryId("");
+              setAiSuggested(false);
             }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium ${
               type === "EXPENSE"
@@ -107,6 +135,7 @@ export default function AddTransactionForm() {
             onClick={() => {
               setType("INCOME");
               setCategoryId("");
+              setAiSuggested(false);
             }}
             className={`flex-1 py-2 rounded-lg text-sm font-medium ${
               type === "INCOME"
@@ -128,14 +157,33 @@ export default function AddTransactionForm() {
           required
         />
 
-        <input
-          type="text"
-          placeholder="Description (e.g. Uber ride)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full border border-sprout-border rounded-xl px-4 py-2.5 text-sm"
-          required
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Description (e.g. Uber ride)"
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              setAiSuggested(false);
+            }}
+            className="flex-1 min-w-0 border border-sprout-border rounded-xl px-4 py-2.5 text-sm"
+            required
+          />
+          {type === "EXPENSE" && (
+            <button
+              type="button"
+              onClick={handleAutoCategorize}
+              disabled={categorizeMutation.isPending}
+              title="Suggest a category with AI"
+              className="shrink-0 flex items-center gap-1 px-3 rounded-xl border border-sprout-border text-sprout-primary text-xs font-medium disabled:opacity-50"
+            >
+              <Sparkles size={14} />
+              {categorizeMutation.isPending ? "..." : "Suggest"}
+            </button>
+          )}
+        </div>
+
+        {aiError && <p className="text-red-500 text-xs -mt-1">{aiError}</p>}
 
         <input
           type="date"
@@ -147,7 +195,15 @@ export default function AddTransactionForm() {
 
         {/* Category picker */}
         <div>
-          <p className="text-xs text-sprout-text-muted mb-2">Category</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            <p className="text-xs text-sprout-text-muted">Category</p>
+            {aiSuggested && (
+              <span className="flex items-center gap-0.5 text-[10px] text-sprout-primary font-medium">
+                <Sparkles size={10} />
+                Suggested by AI
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-4 gap-2">
             {filteredCategories.map((c) => {
               const Icon = getCategoryIcon(c.name);
@@ -156,7 +212,10 @@ export default function AddTransactionForm() {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setCategoryId(c.id)}
+                  onClick={() => {
+                    setCategoryId(c.id);
+                    setAiSuggested(false);
+                  }}
                   className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs ${
                     isSelected
                       ? "border-sprout-primary bg-sprout-primary-light text-sprout-primary"

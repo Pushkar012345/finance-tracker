@@ -18,7 +18,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 }
 
 export function signRefreshToken(payload: { sub: string }): string {
-  return jwt.sign(payload, env.jwt.refreshSecret, {
+  // Include a random jti so two tokens issued for the same user within the
+  // same second (e.g. concurrent refresh calls) never collide. Without this,
+  // jwt.sign() is deterministic at 1-second resolution and produces an
+  // identical token, which crashes the tokenHash unique constraint.
+  return jwt.sign({ ...payload, jti: crypto.randomUUID() }, env.jwt.refreshSecret, {
     expiresIn: env.jwt.refreshExpiresIn,
   } as SignOptions);
 }

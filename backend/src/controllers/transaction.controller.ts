@@ -4,6 +4,7 @@ import { AuthRequest } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { getIdParam } from "../utils/params";
 import { ValidatedRequest } from "../middleware/validate";
+import { categorizeTransaction as categorizeWithAI } from "../services/ai.service";
 
 export async function listTransactions(
   req: AuthRequest & ValidatedRequest,
@@ -93,6 +94,15 @@ export async function getTransaction(req: AuthRequest, res: Response, next: Next
     });
     if (!transaction) throw new AppError("Transaction not found.", 404);
     res.json(transaction);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function categorizeTransaction(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const result = await categorizeWithAI(req.userId!, req.body.description);
+    res.json(result);
   } catch (err) {
     next(err);
   }
