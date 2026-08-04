@@ -166,6 +166,29 @@ async function buildFinancialContext(userId: string): Promise<string> {
     .map(([name, total]) => `  - ${name}: ${total.toFixed(2)}`)
     .join("\n");
 
+  // Separate breakdown scoped to the current calendar month, since the
+  // 3-month window above can't answer "how much did I spend this month"
+  // on its own — the model would otherwise have to (unreliably) re-derive
+  // this by filtering the raw transaction list itself.
+  const currentMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+  const spendByCategoryThisMonth = new Map<string, number>();
+  let totalExpenseThisMonth = 0;
+  let totalIncomeThisMonth = 0;
+  for (const t of transactions) {
+    if (t.date < currentMonthStart) continue;
+    if (t.type === "EXPENSE") {
+      const key = t.category.name;
+      spendByCategoryThisMonth.set(key, (spendByCategoryThisMonth.get(key) ?? 0) + Number(t.amount));
+      totalExpenseThisMonth += Number(t.amount);
+    } else {
+      totalIncomeThisMonth += Number(t.amount);
+    }
+  }
+  const categoryLinesThisMonth = [...spendByCategoryThisMonth.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, total]) => `  - ${name}: ${total.toFixed(2)}`)
+    .join("\n");
+
   const budgetLines = budgets
     .map((b: { category: { name: string }; amount: unknown }) => `  - ${b.category.name}: limit ${Number(b.amount).toFixed(2)}`)
     .join("\n") || "  (none set for this month)";
@@ -191,11 +214,15 @@ async function buildFinancialContext(userId: string): Promise<string> {
 
   return [
     `User: ${user?.name ?? "Unknown"} (base currency: ${user?.baseCurrency ?? "INR"})`,
+    `Today's date: ${now.toISOString().slice(0, 10)}.`,
     `Data window: last ~3 months, up to ${MAX_TRANSACTIONS_IN_CONTEXT} most recent transactions.`,
     "",
-    `Totals over this window — income: ${totalIncome.toFixed(2)}, expenses: ${totalExpense.toFixed(2)}.`,
+    `Current calendar month totals — income: ${totalIncomeThisMonth.toFixed(2)}, expenses: ${totalExpenseThisMonth.toFixed(2)}.`,
+    "Spending by category (current calendar month only):",
+    categoryLinesThisMonth || "  (no expenses so far this month)",
     "",
-    "Spending by category (this window):",
+    `Totals over the full ~3-month window — income: ${totalIncome.toFixed(2)}, expenses: ${totalExpense.toFixed(2)}.`,
+    "Spending by category (full ~3-month window):",
     categoryLines || "  (no expenses in this period)",
     "",
     "Budgets (current calendar month):",
@@ -233,6 +260,7 @@ export async function chatWithAssistant(
   const systemInstruction = [
     "You are a helpful personal finance assistant embedded in a finance-tracking app.",
     "Answer the user's questions ONLY using the financial data snapshot provided below.",
+    "The snapshot includes two separate spending breakdowns: one scoped to the current calendar month, and one scoped to the full ~3-month window. When the user asks about 'this month', use the current-month breakdown. When they ask about 'recently' or don't specify a period, use the 3-month figures and say so.",
     "If the data doesn't contain what's needed to answer, say so plainly instead of guessing or inventing numbers.",
     "Be concise and conversational. Use the user's base currency when quoting amounts, without inventing an exchange rate.",
     "You are not a licensed financial advisor — avoid specific investment, tax, or legal recommendations; you can describe spending patterns, budget status, and progress toward goals.",
