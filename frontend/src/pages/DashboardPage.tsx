@@ -7,6 +7,7 @@ import AddTransactionForm from "../components/AddTransactionForm";
 import BudgetProgress from "../components/BudgetProgress";
 import GoalsList from "../components/GoalsList";
 import CategorySpendingChart from "../components/CategorySpendingChart";
+import AIAssistant from "../components/AIAssistant";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -156,6 +157,8 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      <AIAssistant />
     </div>
   );
 }

@@ -19,3 +19,13 @@ export const authRateLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many attempts. Wait a few minutes and try again." },
 });
+
+// AI endpoints hit a paid, rate-limited upstream (Gemini) and cost real
+// money per call, so they get a much tighter cap than general API traffic.
+export const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many AI requests. Wait a few minutes and try again." },
+});
