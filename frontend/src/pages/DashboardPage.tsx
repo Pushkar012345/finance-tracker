@@ -6,6 +6,7 @@ import { getCategoryIcon } from "../lib/categoryIcons";
 import AddTransactionForm from "../components/AddTransactionForm";
 import BudgetProgress from "../components/BudgetProgress";
 import GoalsList from "../components/GoalsList";
+import CategorySpendingChart from "../components/CategorySpendingChart";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -104,6 +105,8 @@ export default function DashboardPage() {
             </div>
 
             <BudgetProgress />
+
+            <CategorySpendingChart />
 
             <GoalsList />
 
