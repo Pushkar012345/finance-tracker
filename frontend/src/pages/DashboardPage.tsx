@@ -8,6 +8,7 @@ import BudgetProgress from "../components/BudgetProgress";
 import GoalsList from "../components/GoalsList";
 import CategorySpendingChart from "../components/CategorySpendingChart";
 import AIAssistant from "../components/AIAssistant";
+import MonthlyReports from "../components/MonthlyReports";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -110,6 +111,8 @@ export default function DashboardPage() {
             <CategorySpendingChart />
 
             <GoalsList />
+
+            <MonthlyReports />
 
             {/* Transaction list */}
             <div className="flex items-center justify-between mb-3">

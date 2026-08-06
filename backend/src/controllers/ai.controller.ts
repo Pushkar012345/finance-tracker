@@ -5,6 +5,7 @@ import { AppError } from "../middleware/errorHandler";
 import { ValidatedRequest } from "../middleware/validate";
 import { prisma } from "../lib/prisma";
 import { chatWithAssistant, scanReceipt, generateMonthlyReport } from "../services/ai.service";
+import { renderMonthlyReportPdf } from "../services/pdf.service";
 
 export async function chat(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -64,6 +65,44 @@ export async function regenerateReport(
     const { month, year } = req.body;
     const report = await generateMonthlyReport(req.userId!, month, year);
     res.json(report);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Streams a previously generated report as a downloadable PDF. Renders
+// straight from the cached summary/stats — no AI call, so this is free to
+// hit repeatedly (e.g. the user re-downloading the same month).
+export async function getReportPdf(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const report = await prisma.aIReport.findUnique({ where: { id } });
+    if (!report || report.userId !== req.userId) {
+      throw new AppError("Report not found.", 404);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { name: true, baseCurrency: true },
+    });
+
+    const pdfBuffer = await renderMonthlyReportPdf({
+      userName: user?.name ?? "User",
+      baseCurrency: user?.baseCurrency ?? "INR",
+      month: report.month,
+      year: report.year,
+      summary: report.summary,
+      stats: report.stats as any,
+      generatedAt: report.updatedAt,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="finance-report-${report.year}-${String(report.month).padStart(2, "0")}.pdf"`
+    );
+    res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }

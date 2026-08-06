@@ -18,6 +18,7 @@ router.post(
 );
 
 router.get("/reports", aiController.listReports);
+router.get("/reports/:id/pdf", aiController.getReportPdf);
 router.get("/reports/one", validateQuery(monthlyReportSchema), aiController.getOrGenerateReport);
 router.post("/reports/generate", validateBody(monthlyReportSchema), aiController.regenerateReport);
 
