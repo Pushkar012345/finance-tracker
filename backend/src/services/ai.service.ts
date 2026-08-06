@@ -318,6 +318,164 @@ export async function chatWithAssistant(
 
   return text.trim();
 }
+export interface MonthlyReportStats {
+  month: number;
+  year: number;
+  totalIncome: number;
+  totalExpense: number;
+  netSavings: number;
+  spendByCategory: { category: string; amount: number }[];
+  budgets: { category: string; limit: number; spent: number; percentUsed: number }[];
+  goals: { name: string; savedAmount: number; targetAmount: number; percentComplete: number }[];
+  transactionCount: number;
+}
+
+/**
+ * Gathers the same shape of month-scoped data used elsewhere (budgets,
+ * category spend) but for an arbitrary past month/year rather than always
+ * "now", since reports are generated for the month that just ended.
+ */
+async function buildMonthlyStats(userId: string, month: number, year: number): Promise<MonthlyReportStats> {
+  const periodStart = new Date(Date.UTC(year, month - 1, 1));
+  const periodEnd = new Date(Date.UTC(year, month, 1));
+
+  const [transactions, budgets, goals] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { userId, date: { gte: periodStart, lt: periodEnd } },
+      include: { category: true },
+    }),
+    prisma.budget.findMany({
+      where: { userId, month, year },
+      include: { category: true },
+    }),
+    prisma.goal.findMany({ where: { userId } }),
+  ]);
+
+  const totalIncome = transactions
+    .filter((t: { type: string }) => t.type === "INCOME")
+    .reduce((sum: number, t: { amount: unknown }) => sum + Number(t.amount), 0);
+  const totalExpense = transactions
+    .filter((t: { type: string }) => t.type === "EXPENSE")
+    .reduce((sum: number, t: { amount: unknown }) => sum + Number(t.amount), 0);
+
+  const spendMap = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.type !== "EXPENSE") continue;
+    spendMap.set(t.category.name, (spendMap.get(t.category.name) ?? 0) + Number(t.amount));
+  }
+  const spendByCategory = [...spendMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, amount]) => ({ category, amount }));
+
+  const budgetSpendMap = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.type !== "EXPENSE") continue;
+    budgetSpendMap.set(t.categoryId, (budgetSpendMap.get(t.categoryId) ?? 0) + Number(t.amount));
+  }
+  const budgetStats = budgets.map(
+    (b: { category: { name: string }; categoryId: string; amount: unknown }) => {
+      const limit = Number(b.amount);
+      const spent = budgetSpendMap.get(b.categoryId) ?? 0;
+      return {
+        category: b.category.name,
+        limit,
+        spent,
+        percentUsed: limit > 0 ? Math.round((spent / limit) * 100) : 0,
+      };
+    }
+  );
+
+  const goalStats = goals.map(
+    (g: { name: string; savedAmount: unknown; targetAmount: unknown }) => {
+      const saved = Number(g.savedAmount);
+      const target = Number(g.targetAmount);
+      return {
+        name: g.name,
+        savedAmount: saved,
+        targetAmount: target,
+        percentComplete: target > 0 ? Math.round((saved / target) * 100) : 0,
+      };
+    }
+  );
+
+  return {
+    month,
+    year,
+    totalIncome,
+    totalExpense,
+    netSavings: totalIncome - totalExpense,
+    spendByCategory,
+    budgets: budgetStats,
+    goals: goalStats,
+    transactionCount: transactions.length,
+  };
+}
+
+/**
+ * Generates (or regenerates) the natural-language monthly report for a
+ * given user/month, and upserts it into AIReports so it's cached rather
+ * than re-billed to Gemini on every page view. Called both by the
+ * on-demand API route and the scheduled monthly cron job.
+ */
+export async function generateMonthlyReport(userId: string, month: number, year: number) {
+  if (!env.gemini.apiKey) {
+    throw new AppError(
+      "AI monthly reports aren't configured yet. Add GEMINI_API_KEY to the backend .env.",
+      503
+    );
+  }
+
+  const stats = await buildMonthlyStats(userId, month, year);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, baseCurrency: true } });
+
+  if (stats.transactionCount === 0) {
+    throw new AppError("No transactions found for that month — nothing to report on yet.", 400);
+  }
+
+  const prompt = [
+    `You are a personal-finance report writer. Write a short, friendly, natural-language`,
+    `monthly summary (150-250 words) for ${user?.name ?? "the user"} covering ${month}/${year}.`,
+    `Base currency: ${user?.baseCurrency ?? "INR"}. Use only the data below — don't invent numbers.`,
+    `Cover: overall income vs expenses and net savings, the top 1-3 spending categories,`,
+    `whether they stayed within budget (call out any categories that went over),`,
+    `and progress toward their savings goals. End with one practical, non-generic observation`,
+    `grounded in the data. Do not give investment, tax, or legal advice.`,
+    "",
+    "=== Data ===",
+    JSON.stringify(stats, null, 2),
+  ].join("\n");
+
+  let response: Response;
+  try {
+    response = await fetch(`${GEMINI_ENDPOINT(env.gemini.model)}?key=${env.gemini.apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { thinkingConfig: { thinkingLevel: "minimal" } },
+      }),
+    });
+  } catch {
+    throw new AppError("Couldn't reach the AI report generator. Try again.", 502);
+  }
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error("Gemini monthly report error:", response.status, body);
+    throw new AppError("AI report generation failed. Try again in a moment.", 502);
+  }
+
+  const data = await response.json();
+  const summary: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!summary) throw new AppError("AI report generation returned an empty response.", 502);
+
+  return prisma.aIReport.upsert({
+    where: { userId_month_year: { userId, month, year } },
+    create: { userId, month, year, summary: summary.trim(), stats },
+    update: { summary: summary.trim(), stats },
+  });
+}
+
 export interface ReceiptScanResult {
   merchant: string | null;
   amount: number | null;

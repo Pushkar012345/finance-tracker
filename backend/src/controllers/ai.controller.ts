@@ -2,13 +2,68 @@ import { Response, NextFunction } from "express";
 import multer from "multer";
 import { AuthRequest } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
-import { chatWithAssistant, scanReceipt } from "../services/ai.service";
+import { ValidatedRequest } from "../middleware/validate";
+import { prisma } from "../lib/prisma";
+import { chatWithAssistant, scanReceipt, generateMonthlyReport } from "../services/ai.service";
 
 export async function chat(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const { message, history } = req.body;
     const reply = await chatWithAssistant(req.userId!, message, history);
     res.json({ reply });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Lists past monthly reports, most recent first, so the frontend can
+// render a history view without needing to know which months exist.
+export async function listReports(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const reports = await prisma.aIReport.findMany({
+      where: { userId: req.userId },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+    });
+    res.json(reports);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Returns the cached report for a month if one exists; otherwise generates
+// it on the spot. This keeps the "view a report" flow working even before
+// the monthly cron job has run (e.g. the first time a user visits).
+export async function getOrGenerateReport(
+  req: AuthRequest & ValidatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { month, year } = req.validatedQuery;
+
+    const existing = await prisma.aIReport.findUnique({
+      where: { userId_month_year: { userId: req.userId!, month, year } },
+    });
+    if (existing) return res.json(existing);
+
+    const report = await generateMonthlyReport(req.userId!, month, year);
+    res.json(report);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Force-regenerates a report even if a cached one exists, for a
+// "regenerate" button on the frontend.
+export async function regenerateReport(
+  req: AuthRequest & ValidatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { month, year } = req.body;
+    const report = await generateMonthlyReport(req.userId!, month, year);
+    res.json(report);
   } catch (err) {
     next(err);
   }
