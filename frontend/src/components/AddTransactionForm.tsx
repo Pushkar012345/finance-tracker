@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Sparkles } from "lucide-react";
+import { Plus, X, Sparkles, Camera } from "lucide-react";
 import { getCategories } from "../lib/categories";
 import { createTransaction } from "../lib/transactions";
 import { getCategoryIcon } from "../lib/categoryIcons";
-import { categorizeTransaction } from "../lib/ai";
+import { categorizeTransaction, scanReceipt } from "../lib/ai";
 
 export default function AddTransactionForm() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,6 +16,8 @@ export default function AddTransactionForm() {
   const [error, setError] = useState("");
   const [aiSuggested, setAiSuggested] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [scanError, setScanError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryClient = useQueryClient();
 
@@ -54,6 +56,32 @@ export default function AddTransactionForm() {
     },
   });
 
+  const receiptMutation = useMutation({
+    mutationFn: scanReceipt,
+    onSuccess: (result) => {
+      setScanError("");
+      if (result.amount != null) setAmount(String(result.amount));
+      if (result.merchant) {
+        setDescription(result.merchant);
+        setAiSuggested(false);
+      }
+      if (result.date) setDate(result.date);
+    },
+    onError: (err: any) => {
+      const message = err?.response?.data?.error;
+      setScanError(message || "Couldn't read that receipt. Enter the details manually.");
+    },
+  });
+
+  function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setScanError("");
+    setType("EXPENSE");
+    receiptMutation.mutate(file);
+  }
+
   function resetForm() {
     setAmount("");
     setDescription("");
@@ -62,6 +90,7 @@ export default function AddTransactionForm() {
     setError("");
     setAiSuggested(false);
     setAiError("");
+    setScanError("");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -111,6 +140,24 @@ export default function AddTransactionForm() {
           <X size={18} />
         </button>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleReceiptChange}
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={receiptMutation.isPending}
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-sprout-border text-sprout-primary text-sm font-medium py-2.5 rounded-xl mb-3 disabled:opacity-50"
+      >
+        <Camera size={16} />
+        {receiptMutation.isPending ? "Reading receipt..." : "Scan a receipt"}
+      </button>
+      {scanError && <p className="text-red-500 text-xs -mt-2 mb-3">{scanError}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Type toggle */}

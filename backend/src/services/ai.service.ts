@@ -1,6 +1,13 @@
+import { v2 as cloudinary } from "cloudinary";
 import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
 import { AppError } from "../middleware/errorHandler";
+
+cloudinary.config({
+  cloud_name: env.cloudinary.cloudName,
+  api_key: env.cloudinary.apiKey,
+  api_secret: env.cloudinary.apiSecret,
+});
 
 interface CategorizeResult {
   categoryId: string;
@@ -310,4 +317,107 @@ export async function chatWithAssistant(
   }
 
   return text.trim();
+}
+export interface ReceiptScanResult {
+  merchant: string | null;
+  amount: number | null;
+  date: string | null; // YYYY-MM-DD
+  imageUrl: string;
+}
+
+function uploadReceiptImage(userId: string, buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: `receipts/${userId}`, resource_type: "image" },
+      (err, result) => {
+        if (err || !result) return reject(err ?? new Error("Cloudinary upload failed."));
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
+/**
+ * Uploads a receipt photo to Cloudinary for storage, then asks Gemini
+ * Vision to pull out the merchant, total amount, and date so the user
+ * can review/confirm rather than retype the whole thing by hand.
+ */
+export async function scanReceipt(
+  userId: string,
+  buffer: Buffer,
+  mimeType: string
+): Promise<ReceiptScanResult> {
+  if (!env.gemini.apiKey) {
+    throw new AppError(
+      "AI receipt scanning isn't configured yet. Add GEMINI_API_KEY to the backend .env.",
+      503
+    );
+  }
+  if (!env.cloudinary.cloudName) {
+    throw new AppError(
+      "Receipt storage isn't configured yet. Add CLOUDINARY_* vars to the backend .env.",
+      503
+    );
+  }
+
+  const [imageUrl, aiResponse] = await Promise.all([
+    uploadReceiptImage(userId, buffer),
+    (async () => {
+      const prompt = [
+        "You are a receipt-reading assistant for a personal finance app.",
+        "Look at the receipt image and extract the merchant name, the final total",
+        "amount paid (not subtotal), and the transaction date.",
+        "Respond ONLY with JSON in this exact shape, no markdown, no extra text:",
+        `{"merchant": "<string or null>", "amount": <number or null>, "date": "<YYYY-MM-DD or null>"}`,
+      ].join("\n");
+
+      let response: Response;
+      try {
+        response = await fetch(`${GEMINI_ENDPOINT(env.gemini.model)}?key=${env.gemini.apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: mimeType, data: buffer.toString("base64") } },
+                ],
+              },
+            ],
+            generationConfig: {
+              thinkingConfig: { thinkingLevel: "minimal" },
+              responseMimeType: "application/json",
+            },
+          }),
+        });
+      } catch {
+        throw new AppError("Couldn't reach the AI receipt scanner. Try again.", 502);
+      }
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        console.error("Gemini receipt scan error:", response.status, body);
+        throw new AppError("AI receipt scanning failed. Try again in a moment.", 502);
+      }
+
+      const data = await response.json();
+      const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new AppError("AI receipt scanning returned an empty response.", 502);
+
+      try {
+        return JSON.parse(text) as { merchant?: string | null; amount?: number | null; date?: string | null };
+      } catch {
+        throw new AppError("AI receipt scanning returned an unexpected format.", 502);
+      }
+    })(),
+  ]);
+
+  return {
+    merchant: aiResponse.merchant ?? null,
+    amount: typeof aiResponse.amount === "number" ? aiResponse.amount : null,
+    date: aiResponse.date ?? null,
+    imageUrl,
+  };
 }

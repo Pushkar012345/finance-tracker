@@ -11,5 +11,10 @@ router.use(requireAuth);
 router.use(aiRateLimiter);
 
 router.post("/chat", validateBody(chatSchema), aiController.chat);
+router.post(
+  "/receipt-scan",
+  aiController.receiptUploadMiddleware,
+  aiController.scanReceiptHandler
+);
 
 export default router;

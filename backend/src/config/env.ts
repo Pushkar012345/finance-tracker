@@ -32,4 +32,11 @@ export const env = {
     // tasks like this one (low-latency, cost-optimized, GA as of Aug 2026).
     model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite",
   },
+  cloudinary: {
+    // Optional, same reasoning as gemini.apiKey above — receipt scanning
+    // just 503s until these are set, the rest of the app boots fine.
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+  },
 };
