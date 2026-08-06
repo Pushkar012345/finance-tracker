@@ -35,6 +35,12 @@ export default function AddTransactionForm() {
       // an automatic refetch, so the new entry appears instantly without
       // a manual page reload.
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      // Spending chart and budget progress bars use their own query keys
+      // (scoped by month/year) and were going stale after adding a
+      // transaction — invalidate them too so the dashboard updates
+      // immediately instead of needing a manual reload.
+      queryClient.invalidateQueries({ queryKey: ["category-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
       resetForm();
       setIsOpen(false);
     },
@@ -64,6 +70,11 @@ export default function AddTransactionForm() {
       if (result.merchant) {
         setDescription(result.merchant);
         setAiSuggested(false);
+        // Auto-categorize using the merchant name we just extracted, so
+        // the user doesn't have to separately tap "AI categorize" after
+        // scanning — one scan gets them amount, date, description, AND
+        // a category suggestion.
+        categorizeMutation.mutate(result.merchant);
       }
       if (result.date) setDate(result.date);
     },
