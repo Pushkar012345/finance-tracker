@@ -21,6 +21,29 @@ const GREEN = rgb(0.16, 0.42, 0.27); // Sprout-style dark green for headings
 const GRAY = rgb(0.4, 0.4, 0.4);
 const RED = rgb(0.75, 0.2, 0.2);
 
+// pdf-lib's StandardFonts use the WinAnsi (cp1252) encoding, which does not
+// include many currency symbols (₹, ₩, ₽, ₫, ₪, etc). Rather than embedding
+// a full Unicode font just for a handful of symbols, swap known ones for an
+// ASCII-safe equivalent, then strip anything else WinAnsi still can't encode
+// so report generation never crashes on unexpected characters (emoji, etc).
+const CURRENCY_FALLBACKS: Record<string, string> = {
+  "₹": "Rs.",
+  "₩": "KRW",
+  "₽": "RUB",
+  "₫": "VND",
+  "₪": "NIS",
+  "₦": "NGN",
+  "₴": "UAH",
+};
+
+function sanitizeForPdf(text: string): string {
+  let out = text.replace(/[₹₩₽₫₪₦₴]/g, (ch) => CURRENCY_FALLBACKS[ch] ?? "?");
+  // Final safety net: WinAnsi covers Latin-1-ish territory; anything outside
+  // that range (unknown symbols, emoji, etc) becomes "?" instead of crashing.
+  out = out.replace(/[^\x00-\xFF]/g, "?");
+  return out;
+}
+
 /**
  * Renders a cached AIReport (summary + stats) into a downloadable PDF using
  * pdf-lib. Kept as a pure function of already-generated data — this never
@@ -54,7 +77,7 @@ export async function renderMonthlyReportPdf(input: ReportPdfInput): Promise<Buf
   ) {
     const { size = 11, f = font, color = rgb(0, 0, 0), gap = 16 } = opts;
     newPageIfNeeded(gap);
-    page.drawText(text, { x: MARGIN, y, size, font: f, color });
+    page.drawText(sanitizeForPdf(text), { x: MARGIN, y, size, font: f, color });
     y -= gap;
   }
 
@@ -62,7 +85,7 @@ export async function renderMonthlyReportPdf(input: ReportPdfInput): Promise<Buf
   function drawParagraph(text: string, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
     const { size = 11, f = font, color = rgb(0.15, 0.15, 0.15) } = opts;
     const maxWidth = width - MARGIN * 2;
-    const words = text.split(/\s+/);
+    const words = sanitizeForPdf(text).split(/\s+/);
     let line = "";
     for (const word of words) {
       const candidate = line ? `${line} ${word}` : word;
