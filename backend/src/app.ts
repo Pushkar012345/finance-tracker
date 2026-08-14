@@ -10,6 +10,7 @@ import categoryRoutes from "./routes/category.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import goalRoutes from "./routes/goal.routes";
 import aiRoutes from "./routes/ai.routes";
+import recurringPaymentRoutes from "./routes/recurringPayment.routes";
 const app = express();
 
 app.use(helmet());
@@ -23,6 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/recurring-payments", recurringPaymentRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
