@@ -9,6 +9,7 @@ import GoalsList from "../components/GoalsList";
 import CategorySpendingChart from "../components/CategorySpendingChart";
 import AIAssistant from "../components/AIAssistant";
 import MonthlyReports from "../components/MonthlyReports";
+import RecurringPayments from "../components/RecurringPayments";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -111,6 +112,8 @@ export default function DashboardPage() {
             <CategorySpendingChart />
 
             <GoalsList />
+
+            <RecurringPayments />
 
             <MonthlyReports />
 
