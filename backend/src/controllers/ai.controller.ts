@@ -6,6 +6,7 @@ import { ValidatedRequest } from "../middleware/validate";
 import { prisma } from "../lib/prisma";
 import { chatWithAssistant, scanReceipt, generateMonthlyReport } from "../services/ai.service";
 import { renderMonthlyReportPdf } from "../services/pdf.service";
+import { getIdParam } from "../utils/params";
 
 export async function chat(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -75,7 +76,7 @@ export async function regenerateReport(
 // hit repeatedly (e.g. the user re-downloading the same month).
 export async function getReportPdf(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getIdParam(req);
 
     const report = await prisma.aIReport.findUnique({ where: { id } });
     if (!report || report.userId !== req.userId) {

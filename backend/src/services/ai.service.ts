@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
 import { AppError } from "../middleware/errorHandler";
@@ -469,10 +470,12 @@ export async function generateMonthlyReport(userId: string, month: number, year:
   const summary: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!summary) throw new AppError("AI report generation returned an empty response.", 502);
 
+  const statsJson = stats as unknown as Prisma.InputJsonValue;
+
   return prisma.aIReport.upsert({
     where: { userId_month_year: { userId, month, year } },
-    create: { userId, month, year, summary: summary.trim(), stats },
-    update: { summary: summary.trim(), stats },
+    create: { userId, month, year, summary: summary.trim(), stats: statsJson },
+    update: { summary: summary.trim(), stats: statsJson },
   });
 }
 
