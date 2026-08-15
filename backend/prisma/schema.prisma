@@ -32,6 +32,7 @@ model User {
    goals         Goal[]
    aiReports     AIReport[]
    recurringPayments RecurringPayment[]
+   notifications     Notification[]
   @@map("users")
 }
 
@@ -91,6 +92,7 @@ model Budget {
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@unique([userId, categoryId, month, year])
   @@index([userId])
@@ -159,4 +161,27 @@ model RecurringPayment {
   @@index([userId])
   @@index([nextRunDate, active])
   @@map("recurring_payments")
+}
+
+enum NotificationType {
+  BUDGET_WARNING  // spend has crossed the warning threshold (e.g. 80%) of a budget
+  BUDGET_EXCEEDED // spend has crossed 100% of a budget
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  userId    String
+  budgetId  String?
+  createdAt DateTime         @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget Budget? @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@map("notifications")
 }

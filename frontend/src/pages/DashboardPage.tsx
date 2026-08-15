@@ -10,6 +10,7 @@ import CategorySpendingChart from "../components/CategorySpendingChart";
 import AIAssistant from "../components/AIAssistant";
 import MonthlyReports from "../components/MonthlyReports";
 import RecurringPayments from "../components/RecurringPayments";
+import NotificationBell from "../components/NotificationBell";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -63,13 +64,16 @@ export default function DashboardPage() {
               <h1 className="font-display text-lg text-sprout-text -mt-0.5">{user?.email}</h1>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 text-sprout-text-muted text-sm hover:text-sprout-text transition-colors"
-          >
-            <LogOut size={16} />
-            Log out
-          </button>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 text-sprout-text-muted text-sm hover:text-sprout-text transition-colors pl-2"
+            >
+              <LogOut size={16} />
+              Log out
+            </button>
+          </div>
         </div>
 
         {isLoading && (

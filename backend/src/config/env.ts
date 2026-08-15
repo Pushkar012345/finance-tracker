@@ -39,4 +39,14 @@ export const env = {
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
+  smtp: {
+    // Optional, same reasoning as gemini.apiKey above — budget alert
+    // emails are skipped (in-app notification still gets created) until
+    // these are set, the rest of the app boots fine.
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT ?? "587", 10),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM ?? "Finance Tracker <notifications@financetracker.app>",
+  },
 };
