@@ -1,7 +1,9 @@
 import axios from "axios";
 
+// VITE_API_URL is baked in at build time (see docker-compose / deploy docs).
+// Falls back to localhost so `npm run dev` keeps working with zero setup.
 export const api = axios.create({
-  baseURL: "http://localhost:4000/api",
+  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:4000/api",
 });
 
 // Attach the access token to every outgoing request, if one exists.
@@ -34,7 +36,11 @@ async function refreshTokens() {
 
   if (!refreshPromise) {
     refreshPromise = axios
-      .post("http://localhost:4000/api/auth/refresh", { refreshToken })
+      // Plain axios (not the `api` instance) on purpose — going through
+      // `api` would re-trigger this same response interceptor on failure.
+      .post(`${import.meta.env.VITE_API_URL ?? "http://localhost:4000/api"}/auth/refresh`, {
+        refreshToken,
+      })
       .then(({ data }) => {
         localStorage.setItem("accessToken", data.accessToken);
         localStorage.setItem("refreshToken", data.refreshToken);

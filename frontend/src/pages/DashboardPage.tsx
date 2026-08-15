@@ -11,6 +11,7 @@ import AIAssistant from "../components/AIAssistant";
 import MonthlyReports from "../components/MonthlyReports";
 import RecurringPayments from "../components/RecurringPayments";
 import NotificationBell from "../components/NotificationBell";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -65,7 +66,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <NotificationBell />
+            <ErrorBoundary variant="section" label="notifications" fallback={null}>
+              <NotificationBell />
+            </ErrorBoundary>
             <button
               onClick={logout}
               className="flex items-center gap-1.5 text-sprout-text-muted text-sm hover:text-sprout-text transition-colors pl-2"
@@ -111,15 +114,25 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <BudgetProgress />
+            <ErrorBoundary variant="section" label="budgets">
+              <BudgetProgress />
+            </ErrorBoundary>
 
-            <CategorySpendingChart />
+            <ErrorBoundary variant="section" label="the spending chart">
+              <CategorySpendingChart />
+            </ErrorBoundary>
 
-            <GoalsList />
+            <ErrorBoundary variant="section" label="your goals">
+              <GoalsList />
+            </ErrorBoundary>
 
-            <RecurringPayments />
+            <ErrorBoundary variant="section" label="recurring payments">
+              <RecurringPayments />
+            </ErrorBoundary>
 
-            <MonthlyReports />
+            <ErrorBoundary variant="section" label="monthly reports">
+              <MonthlyReports />
+            </ErrorBoundary>
 
             {/* Transaction list */}
             <div className="flex items-center justify-between mb-3">
@@ -168,7 +181,9 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <AIAssistant />
+      <ErrorBoundary variant="section" label="the AI assistant" fallback={null}>
+        <AIAssistant />
+      </ErrorBoundary>
     </div>
   );
 }
