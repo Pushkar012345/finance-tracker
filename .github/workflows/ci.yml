@@ -53,3 +53,30 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+
+  # Fires the two providers' deploy hooks once both test/build jobs pass on
+  # main. Deploy hooks are plain "POST this URL to trigger a deploy" links
+  # generated in the Render/Vercel dashboards — no CLI or API token needed,
+  # each provider then pulls the latest `main` and builds it themselves
+  # (Render uses backend/Dockerfile, Vercel uses frontend/vercel.json).
+  # Doesn't run on pull_request, only on a push that lands on main.
+  deploy:
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend (Render)
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: curl --fail -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      - name: Skip backend deploy (no hook configured)
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+        run: echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping backend deploy. See README > Deploying."
+
+      - name: Deploy frontend (Vercel)
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: curl --fail -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+
+      - name: Skip frontend deploy (no hook configured)
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL == '' }}
+        run: echo "VERCEL_DEPLOY_HOOK_URL secret not set — skipping frontend deploy. See README > Deploying."

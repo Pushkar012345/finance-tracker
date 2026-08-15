@@ -1,0 +1,63 @@
+# Render Blueprint — deploys the backend API as a Docker web service.
+# https://render.com/docs/blueprint-spec
+#
+# Database: this project targets an external managed Postgres (Neon or
+# Supabase — see README "Deploying" section) rather than Render's own
+# Postgres, so DATABASE_URL is left as sync:false below (set it in the
+# Render dashboard, or Render will prompt for it on first deploy).
+#
+# Usage: in the Render dashboard, "New +" -> "Blueprint", point it at this
+# repo. Render reads this file and creates the service below.
+services:
+  - type: web
+    name: finance-tracker-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true # redeploys on every push to the branch below
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # Secrets and connection strings — set these in the Render dashboard
+      # (Environment tab). sync:false means Render prompts for a value
+      # instead of committing it here.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      # Set this to the deployed frontend's exact origin (Vercel URL or
+      # custom domain) — CORS and the refresh-token cookie are scoped to it.
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: "Finance Tracker <notifications@financetracker.app>"
