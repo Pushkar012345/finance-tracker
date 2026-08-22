@@ -66,17 +66,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy backend (Render)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-        run: curl --fail -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
 
       - name: Skip backend deploy (no hook configured)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL == '' }}
         run: echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping backend deploy. See README > Deploying."
 
       - name: Deploy frontend (Vercel)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
-        run: curl --fail -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        if: ${{ env.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: curl --fail -X POST "$VERCEL_DEPLOY_HOOK_URL"
 
       - name: Skip frontend deploy (no hook configured)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL == '' }}
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        if: ${{ env.VERCEL_DEPLOY_HOOK_URL == '' }}
         run: echo "VERCEL_DEPLOY_HOOK_URL secret not set — skipping frontend deploy. See README > Deploying."
