@@ -11,6 +11,7 @@ import transactionRoutes from "./routes/transaction.routes";
 import goalRoutes from "./routes/goal.routes";
 import aiRoutes from "./routes/ai.routes";
 import recurringPaymentRoutes from "./routes/recurringPayment.routes";
+import notificationRoutes from "./routes/notification.routes";
 const app = express();
 
 app.use(helmet());
@@ -25,6 +26,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/recurring-payments", recurringPaymentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
