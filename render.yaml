@@ -14,7 +14,12 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
+    plan: free
+    # Free tier tradeoffs: spins down after 15 min of no traffic (first
+    # request after that takes a few seconds to wake back up), and its
+    # 750 free instance-hours/month are shared across every free web
+    # service in your workspace. Fine for demos/testing. For an
+    # always-on production instance, change this to `starter` ($7/mo).
     region: oregon
     healthCheckPath: /health
     autoDeploy: true # redeploys on every push to the branch below

@@ -144,7 +144,7 @@ export default function AddTransactionForm() {
   }
 
   return (
-    <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-4 mt-4">
+    <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-4 mt-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-sprout-text">Add transaction</h3>
         <button onClick={() => setIsOpen(false)} className="text-sprout-text-muted">
@@ -168,7 +168,7 @@ export default function AddTransactionForm() {
         <Camera size={16} />
         {receiptMutation.isPending ? "Reading receipt..." : "Scan a receipt"}
       </button>
-      {scanError && <p className="text-red-500 text-xs -mt-2 mb-3">{scanError}</p>}
+      {scanError && <p className="text-sprout-danger text-xs -mt-2 mb-3">{scanError}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Type toggle */}
@@ -241,7 +241,7 @@ export default function AddTransactionForm() {
           )}
         </div>
 
-        {aiError && <p className="text-red-500 text-xs -mt-1">{aiError}</p>}
+        {aiError && <p className="text-sprout-danger text-xs -mt-1">{aiError}</p>}
 
         <input
           type="date"
@@ -288,7 +288,7 @@ export default function AddTransactionForm() {
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-sprout-danger text-sm">{error}</p>}
 
         <button
           type="submit"

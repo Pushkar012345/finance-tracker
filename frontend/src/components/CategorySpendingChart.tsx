@@ -38,7 +38,7 @@ export default function CategorySpendingChart() {
 
   if (isError) {
     return (
-      <div className="text-red-500 text-sm py-6 text-center">Couldn't load spending breakdown.</div>
+      <div className="text-sprout-danger text-sm py-6 text-center">Couldn't load spending breakdown.</div>
     );
   }
 
@@ -48,28 +48,28 @@ export default function CategorySpendingChart() {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sprout-text font-medium">Spending by category</h2>
+        <h2 className="text-sprout-text font-display font-medium text-sm">Spending by category</h2>
         <span className="text-sprout-text-muted text-xs">this month</span>
       </div>
 
       {rows.length === 0 && (
-        <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-6 text-center">
+        <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-6 text-center">
           <p className="text-sprout-text-muted text-sm">No expenses recorded this month yet.</p>
         </div>
       )}
 
       {rows.length > 0 && (
-        <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-32 h-32 shrink-0">
+        <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-4">
+          <div className="flex items-center gap-5">
+            <div className="relative w-40 h-40 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={rows}
                     dataKey="total"
                     nameKey="categoryName"
-                    innerRadius={38}
-                    outerRadius={56}
+                    innerRadius={48}
+                    outerRadius={70}
                     paddingAngle={2}
                     stroke="none"
                   >
@@ -88,9 +88,18 @@ export default function CategorySpendingChart() {
                   />
                 </PieChart>
               </ResponsiveContainer>
+              {/* The donut's hollow center was empty space before — the
+                  total is the one number this chart doesn't otherwise show
+                  anywhere, so it belongs right where the eye lands first. */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-sprout-text-muted text-[10px] leading-none mb-1">Total</span>
+                <span className="text-sprout-text font-display font-semibold text-base leading-none">
+                  {formatCurrency(total)}
+                </span>
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 space-y-2.5">
               {rows.map((row, i) => {
                 const pct = total > 0 ? Math.round((row.total / total) * 100) : 0;
                 return (

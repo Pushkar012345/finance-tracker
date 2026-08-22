@@ -65,9 +65,9 @@ export default function MonthlyReports() {
   });
 
   return (
-    <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-4 mb-6">
+    <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5 text-sprout-text font-medium text-sm">
+        <div className="flex items-center gap-1.5 text-sprout-text font-display font-medium text-sm">
           <FileText size={16} className="text-sprout-primary" />
           Monthly AI reports
         </div>
@@ -80,7 +80,7 @@ export default function MonthlyReports() {
         </button>
       </div>
 
-      {error && <p className="text-red-500 text-xs mb-2">{error}</p>}
+      {error && <p className="text-sprout-danger text-xs mb-2">{error}</p>}
 
       {isLoading && <p className="text-sprout-text-muted text-xs">Loading reports…</p>}
 

@@ -79,7 +79,7 @@ export default function AddBudgetForm() {
   }
 
   return (
-    <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-4 mt-2">
+    <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-4 mt-2">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-sprout-text">Add budget</h3>
         <button onClick={() => setIsOpen(false)} className="text-sprout-text-muted">
@@ -133,7 +133,7 @@ export default function AddBudgetForm() {
           Applies to {now.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
         </p>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-sprout-danger text-sm">{error}</p>}
 
         <button
           type="submit"

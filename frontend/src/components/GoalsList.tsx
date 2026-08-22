@@ -46,24 +46,24 @@ export default function GoalsList() {
   }
 
   if (isError) {
-    return <div className="text-red-500 text-sm py-6 text-center">Couldn't load goals.</div>;
+    return <div className="text-sprout-danger text-sm py-6 text-center">Couldn't load goals.</div>;
   }
 
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sprout-text font-medium">Savings goals</h2>
+        <h2 className="text-sprout-text font-display font-medium text-sm">Savings goals</h2>
         <span className="text-sprout-text-muted text-xs">{goals?.length ?? 0} goals</span>
       </div>
 
       {(!goals || goals.length === 0) && (
-        <div className="bg-sprout-surface border border-sprout-border rounded-sprout p-6 text-center">
+        <div className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-6 text-center">
           <p className="text-sprout-text-muted text-sm">No savings goals yet.</p>
         </div>
       )}
 
       {goals && goals.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {goals.map((goal) => {
             const target = Number(goal.targetAmount);
             const saved = Number(goal.savedAmount);
@@ -74,7 +74,7 @@ export default function GoalsList() {
             return (
               <div
                 key={goal.id}
-                className="bg-sprout-surface border border-sprout-border rounded-sprout p-4"
+                className="bg-sprout-surface border border-sprout-border rounded-sprout shadow-sprout p-4"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-8 h-8 rounded-full bg-sprout-primary-light flex items-center justify-center shrink-0">

@@ -125,7 +125,7 @@ export default function AIAssistant() {
           </div>
         )}
 
-        {error && <p className="text-red-500 text-xs px-1">{error}</p>}
+        {error && <p className="text-sprout-danger text-xs px-1">{error}</p>}
       </div>
 
       {/* Input */}
