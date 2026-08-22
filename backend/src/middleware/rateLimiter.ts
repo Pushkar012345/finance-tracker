@@ -1,5 +1,7 @@
+import { Request } from "express";
 import rateLimit from "express-rate-limit";
 import { env } from "../config/env";
+import { DEMO_EMAIL } from "../constants/demo";
 
 // The test suite drives many signup/login/refresh calls back-to-back from
 // a single in-process client (same IP), which would trip these limiters
@@ -8,6 +10,18 @@ import { env } from "../config/env";
 // in the automated test run, where "one IP" is a testing artifact rather
 // than a signal of abuse.
 const skipInTest = () => env.nodeEnv === "test";
+
+// The public demo button (see frontend AuthContext.continueAsDemo) logs in
+// with a fixed, publicly-known email, so it isn't a credential-stuffing
+// target the way real user logins are — there's nothing to brute-force.
+// Without this, many visitors (recruiters, reviewers) trying the demo
+// within the same 15-minute window from a shared office/VPN IP would
+// exhaust the same 10-request budget as real login attempts and start
+// seeing false "too many attempts" errors.
+const skipDemoLogin = (req: Request) =>
+  typeof req.body?.email === "string" && req.body.email.toLowerCase() === DEMO_EMAIL;
+
+const skipAuthRateLimit = (req: Request) => skipInTest() || skipDemoLogin(req);
 
 // Applies to every request — a generous backstop against runaway
 // clients or scripts, not the primary defense.
@@ -27,7 +41,7 @@ export const authRateLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: skipInTest,
+  skip: skipAuthRateLimit,
   message: { error: "Too many attempts. Wait a few minutes and try again." },
 });
 
