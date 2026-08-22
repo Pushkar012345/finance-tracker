@@ -10,7 +10,7 @@ import CategorySpendingChart from "../components/CategorySpendingChart";
 import AIAssistant from "../components/AIAssistant";
 import MonthlyReports from "../components/MonthlyReports";
 import HeroBalance from "../components/HeroBalance";
-import NotificationsBell from "../components/NotificationsBell";
+import NotificationBell from "../components/NotificationBell";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 function formatCurrency(amount: number) {
@@ -67,7 +67,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <NotificationsBell />
+            <NotificationBell />
             <button
               onClick={logout}
               className="flex items-center gap-1.5 text-sprout-text-muted text-sm hover:text-sprout-text transition-colors"
