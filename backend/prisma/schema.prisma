@@ -24,6 +24,11 @@ enum RecurringFrequency {
   YEARLY
 }
 
+enum NotificationType {
+  BUDGET_WARNING
+  BUDGET_EXCEEDED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -44,6 +49,7 @@ model User {
    goals         Goal[]
    aiReports     AIReport[]
    recurringPayments RecurringPayment[]
+   notifications     Notification[]
   @@map("users")
 }
 
@@ -103,10 +109,29 @@ model Budget {
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@unique([userId, categoryId, month, year])
   @@index([userId])
   @@map("budgets")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  userId    String
+  budgetId  String?
+  createdAt DateTime         @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget Budget? @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@map("notifications")
 }
 
 model Goal {
