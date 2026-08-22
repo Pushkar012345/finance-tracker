@@ -2,6 +2,11 @@
 FROM node:20-slim AS build
 WORKDIR /app
 
+# Prisma's query engine needs OpenSSL to detect the correct libssl target
+# at generate-time — node:20-slim doesn't ship it, which is what produces
+# the "failed to detect the libssl/openssl version" warning at runtime.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci
@@ -17,6 +22,12 @@ RUN npm run build
 FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Same reasoning as the build stage: the runtime image also runs
+# `prisma generate` (and the query engine itself needs OpenSSL at runtime
+# to actually connect to Postgres), so it needs this too, independently
+# of the build stage above.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 COPY prisma ./prisma
