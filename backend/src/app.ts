@@ -11,14 +11,7 @@ import transactionRoutes from "./routes/transaction.routes";
 import goalRoutes from "./routes/goal.routes";
 import aiRoutes from "./routes/ai.routes";
 import recurringPaymentRoutes from "./routes/recurringPayment.routes";
-import notificationRoutes from "./routes/notification.routes";
 const app = express();
-
-// Required behind a reverse proxy (Render, Railway, Vercel, etc.) so
-// express-rate-limit and req.ip see the real client IP from X-Forwarded-For
-// instead of the proxy's IP. Without this, rate limits apply to all users
-// combined rather than per-client. Harmless locally / with no proxy.
-app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors({ origin: env.frontendOrigin, credentials: true }));
@@ -32,7 +25,6 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/recurring-payments", recurringPaymentRoutes);
-app.use("/api/notifications", notificationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

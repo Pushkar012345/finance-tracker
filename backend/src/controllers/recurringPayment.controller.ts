@@ -3,35 +3,26 @@ import { prisma } from "../lib/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { getIdParam } from "../utils/params";
+import { ValidatedRequest } from "../middleware/validate";
 
-/** Advances a date by one occurrence of the given frequency. */
-export function advanceDate(date: Date, frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"): Date {
-  const d = new Date(date);
-  switch (frequency) {
-    case "DAILY":
-      d.setUTCDate(d.getUTCDate() + 1);
-      break;
-    case "WEEKLY":
-      d.setUTCDate(d.getUTCDate() + 7);
-      break;
-    case "MONTHLY":
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      break;
-    case "YEARLY":
-      d.setUTCFullYear(d.getUTCFullYear() + 1);
-      break;
-  }
-  return d;
-}
-
-export async function listRecurringPayments(req: AuthRequest, res: Response, next: NextFunction) {
+export async function listRecurringPayments(
+  req: AuthRequest & ValidatedRequest,
+  res: Response,
+  next: NextFunction
+) {
   try {
-    const payments = await prisma.recurringPayment.findMany({
-      where: { userId: req.userId },
+    const { isActive } = req.validatedQuery ?? {};
+
+    const recurringPayments = await prisma.recurringPayment.findMany({
+      where: {
+        userId: req.userId,
+        ...(isActive !== undefined && { isActive }),
+      },
       include: { category: true },
       orderBy: { nextRunDate: "asc" },
     });
-    res.json(payments);
+
+    res.json(recurringPayments);
   } catch (err) {
     next(err);
   }
@@ -44,15 +35,19 @@ export async function createRecurringPayment(req: AuthRequest, res: Response, ne
     });
     if (!category) throw new AppError("Category not found.", 400);
 
-    const payment = await prisma.recurringPayment.create({
+    const { startDate } = req.body;
+
+    const recurringPayment = await prisma.recurringPayment.create({
       data: {
         ...req.body,
-        nextRunDate: req.body.startDate,
         userId: req.userId!,
+        // First occurrence is the start date itself; the job will create
+        // the transaction for it once it's due.
+        nextRunDate: startDate,
       },
       include: { category: true },
     });
-    res.status(201).json(payment);
+    res.status(201).json(recurringPayment);
   } catch (err) {
     next(err);
   }
@@ -61,7 +56,10 @@ export async function createRecurringPayment(req: AuthRequest, res: Response, ne
 export async function updateRecurringPayment(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = getIdParam(req);
-    const existing = await prisma.recurringPayment.findFirst({ where: { id, userId: req.userId } });
+
+    const existing = await prisma.recurringPayment.findFirst({
+      where: { id, userId: req.userId },
+    });
     if (!existing) throw new AppError("Recurring payment not found.", 404);
 
     if (req.body.categoryId) {
@@ -71,12 +69,12 @@ export async function updateRecurringPayment(req: AuthRequest, res: Response, ne
       if (!category) throw new AppError("Category not found.", 400);
     }
 
-    const payment = await prisma.recurringPayment.update({
+    const recurringPayment = await prisma.recurringPayment.update({
       where: { id },
       data: req.body,
       include: { category: true },
     });
-    res.json(payment);
+    res.json(recurringPayment);
   } catch (err) {
     next(err);
   }
@@ -85,7 +83,10 @@ export async function updateRecurringPayment(req: AuthRequest, res: Response, ne
 export async function deleteRecurringPayment(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = getIdParam(req);
-    const existing = await prisma.recurringPayment.findFirst({ where: { id, userId: req.userId } });
+
+    const existing = await prisma.recurringPayment.findFirst({
+      where: { id, userId: req.userId },
+    });
     if (!existing) throw new AppError("Recurring payment not found.", 404);
 
     await prisma.recurringPayment.delete({ where: { id } });

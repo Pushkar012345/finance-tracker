@@ -6,6 +6,13 @@ import { DEFAULT_CATEGORIES } from "../constants/defaultCategories";
 import { SignupInput, LoginInput } from "../validators/auth.validator";
 import { env } from "../config/env";
 
+// Account-level lockout thresholds. This runs alongside (not instead of)
+// the IP-based authRateLimiter — the rate limiter stops a single attacker
+// hammering from one IP, this stops a distributed attempt against one
+// specific account from many IPs, which the rate limiter can't see.
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+
 function refreshExpiryDate(): Date {
   // Mirrors JWT_REFRESH_EXPIRES_IN so the DB record and the token itself
   // go stale at the same time. Defaults to 7 days if parsing fails.
@@ -69,9 +76,36 @@ export async function login(input: LoginInput) {
     throw new AppError("Incorrect email or password.", 401);
   }
 
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+    throw new AppError(
+      `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+      429
+    );
+  }
+
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) {
+    const attempts = user.failedLoginAttempts + 1;
+    const lockingOut = attempts >= MAX_FAILED_ATTEMPTS;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: lockingOut ? 0 : attempts,
+        lockedUntil: lockingOut ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+      },
+    });
+
     throw new AppError("Incorrect email or password.", 401);
+  }
+
+  // Successful login clears any prior failure count.
+  if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
   }
 
   const tokens = await issueTokenPair(user.id, user.email);
@@ -93,7 +127,26 @@ export async function refresh(refreshToken: string) {
   const tokenHash = hashToken(refreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+  if (!stored) {
+    throw new AppError("Refresh token expired or invalid. Sign in again.", 401);
+  }
+
+  if (stored.revokedAt) {
+    // This exact token was already used once and rotated out — seeing it
+    // again means either a replay of a stolen token, or a client bug. We
+    // can't tell which, so we treat it as a compromise signal: revoke
+    // every other active session for this user, forcing a fresh sign-in
+    // everywhere. This bounds the damage from a stolen refresh token to
+    // "one extra request", rather than leaving a valid session live
+    // indefinitely once reuse is detected.
+    await prisma.refreshToken.updateMany({
+      where: { userId: stored.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    throw new AppError("Session invalidated for security. Please sign in again.", 401);
+  }
+
+  if (stored.expiresAt < new Date()) {
     throw new AppError("Refresh token expired or invalid. Sign in again.", 401);
   }
 
