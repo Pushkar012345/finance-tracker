@@ -83,12 +83,18 @@ export async function runBudgetAlertsJob(now: Date = new Date()) {
   return { warningsSent, exceededSent };
 }
 
-/** Runs every 6 hours — frequent enough to catch threshold crossings same-day without hammering the DB. */
+/** Runs once on boot (so alerts for already-over-budget accounts show up
+ * immediately instead of waiting for the first scheduled tick) and then
+ * every 6 hours after that. */
 export function scheduleBudgetAlertsJob() {
+  runBudgetAlertsJob().catch((err) => {
+    console.error("[budgetAlertsJob] Initial run failed:", err);
+  });
+
   cron.schedule("0 */6 * * *", () => {
     runBudgetAlertsJob().catch((err) => {
       console.error("[budgetAlertsJob] Unexpected top-level error:", err);
     });
   });
-  console.log("[budgetAlertsJob] Scheduled: every 6 hours.");
+  console.log("[budgetAlertsJob] Scheduled: every 6 hours, plus once on boot.");
 }

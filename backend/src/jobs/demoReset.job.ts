@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { hashPassword } from "../utils/password";
 import { DEFAULT_CATEGORIES } from "../constants/defaultCategories";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_NAME } from "../constants/demo";
+import { runBudgetAlertsJob } from "./budgetAlert.job";
 
 /**
  * The demo account (see "Continue without login" on the login page) is a
@@ -94,11 +95,27 @@ export async function runDemoResetJob() {
   });
 
   console.log(`[demoResetJob] Demo account (${DEMO_EMAIL}) reset to seed data.`);
+
+  // The general budget-alert check only runs every 6 hours (see
+  // budgetAlert.job.ts) — far less often than this hourly reset. Without
+  // this, a freshly-reset demo would show its over-budget categories with
+  // no matching notification for most of the day, since resetting budgets
+  // deletes their old notifications (cascade) and nothing regenerates a
+  // new one until the next 6-hour tick. Running it here keeps the demo's
+  // notification bell honest immediately after every reset.
+  try {
+    await runBudgetAlertsJob();
+  } catch (err) {
+    console.error("[demoResetJob] Post-reset budget alert check failed:", err);
+  }
 }
 
-/** Runs once on boot (so a fresh deploy starts clean) and then hourly. */
-export function scheduleDemoResetJob() {
-  runDemoResetJob().catch((err) => {
+/** Runs once on boot (so a fresh deploy starts clean) and then hourly.
+ * Returns the initial run's promise so callers (see server.ts) can wait
+ * for demo data to exist before running anything that depends on it,
+ * like the budget alerts job checking demo budgets for the first time. */
+export async function scheduleDemoResetJob() {
+  await runDemoResetJob().catch((err) => {
     console.error("[demoResetJob] Initial run failed:", err);
   });
 
