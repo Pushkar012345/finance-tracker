@@ -1,60 +1,59 @@
-name: finance-tracker
-
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: finance
-      POSTGRES_PASSWORD: finance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: finance_tracker
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U finance -d finance_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # Not yet wired into the app — provisioned here so caching can be added
-  # later (dashboard aggregates, AI report lookups) without a compose change.
+  # Not used by the app yet (Phase 5 — dashboard-aggregate caching — hasn't
+  # been built). Included now so `docker compose up` gives you everything
+  # Phase 5 will need without touching this file again later.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis-data:/data
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "4000:4000"
-    env_file:
-      - ./backend/.env
     environment:
-      # Overrides .env so the backend always reaches the compose network's
-      # postgres service by name, regardless of what's in the local .env.
-      DATABASE_URL: postgresql://finance:finance@postgres:5432/finance_tracker
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/finance_tracker
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me}
+      FRONTEND_ORIGIN: http://localhost:5173
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: http://localhost:4000/api
+    build: ./frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "5173:4173"
 
 volumes:
-  postgres_data:
-  redis_data:
+  postgres-data:
+  redis-data:

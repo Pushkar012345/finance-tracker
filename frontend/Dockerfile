@@ -1,23 +1,23 @@
-# ---- Build ----
-FROM node:20-alpine AS build
+# --- Build stage ---
+FROM node:20-slim AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm ci
 
 COPY . .
-
-# Baked into the static bundle at build time — Vite only reads
-# VITE_-prefixed vars, and only at build, not at container startup.
-ARG VITE_API_URL=http://localhost:4000/api
-ENV VITE_API_URL=$VITE_API_URL
-
 RUN npm run build
 
-# ---- Runtime ----
-FROM nginx:1.27-alpine AS runtime
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# --- Runtime stage ---
+# `serve` is a tiny static file server — plenty for a Vite build. In actual
+# production this app is deployed to Vercel instead (see README), so this
+# container exists mainly for local docker-compose testing and any
+# non-Vercel host you might use later.
+FROM node:20-slim AS runtime
+WORKDIR /app
+RUN npm install -g serve
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=build /app/dist ./dist
+
+EXPOSE 4173
+CMD ["serve", "-s", "dist", "-l", "4173"]
