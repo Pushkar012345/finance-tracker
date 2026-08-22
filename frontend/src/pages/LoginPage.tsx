@@ -104,6 +104,18 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
+
+        <p className="text-center text-xs text-sprout-text-muted/70 mt-8">
+          Built by Pushkar Pawar ·{" "}
+          <a
+            href="https://www.linkedin.com/in/pushkarpawar314/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-sprout-text-muted hover:underline"
+          >
+            LinkedIn
+          </a>
+        </p>
       </div>
     </div>
   );
