@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiError } from "../lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { getCategories } from "../lib/categories";
@@ -31,8 +32,8 @@ export default function AddBudgetForm() {
       resetForm();
       setIsOpen(false);
     },
-    onError: (err: any) => {
-      const message = err?.response?.data?.error;
+    onError: (err: unknown) => {
+      const message = getApiError(err);
       setError(message || "Couldn't add that budget. Check the fields and try again.");
     },
   });

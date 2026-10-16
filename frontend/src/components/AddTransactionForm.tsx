@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { getApiError } from "../lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Sparkles, Camera } from "lucide-react";
 import { getCategories } from "../lib/categories";
@@ -56,8 +57,8 @@ export default function AddTransactionForm() {
       setAiSuggested(true);
       setAiError("");
     },
-    onError: (err: any) => {
-      const message = err?.response?.data?.error;
+    onError: (err: unknown) => {
+      const message = getApiError(err);
       setAiError(message || "Couldn't get an AI suggestion. Pick a category manually.");
     },
   });
@@ -78,8 +79,8 @@ export default function AddTransactionForm() {
       }
       if (result.date) setDate(result.date);
     },
-    onError: (err: any) => {
-      const message = err?.response?.data?.error;
+    onError: (err: unknown) => {
+      const message = getApiError(err);
       setScanError(message || "Couldn't read that receipt. Enter the details manually.");
     },
   });

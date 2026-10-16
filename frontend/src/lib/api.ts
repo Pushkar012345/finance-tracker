@@ -5,6 +5,19 @@ import axios from "axios";
 // backend's URL, e.g. https://your-backend.onrender.com/api).
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
 
+/**
+ * Pulls the backend's `{ error: "..." }` message out of a failed request,
+ * or undefined if there isn't one (network down, timeout, non-Axios error).
+ * Takes `unknown` so callers don't need `any` in their catch/onError blocks.
+ */
+export function getApiError(err: unknown): string | undefined {
+  if (axios.isAxiosError(err)) {
+    const message = err.response?.data?.error;
+    return typeof message === "string" ? message : undefined;
+  }
+  return undefined;
+}
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
 });

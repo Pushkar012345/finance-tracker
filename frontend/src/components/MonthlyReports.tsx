@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiError } from "../lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Download, RefreshCw, ChevronDown } from "lucide-react";
 import {
@@ -44,8 +45,8 @@ export default function MonthlyReports() {
       setExpandedId(report.id);
       queryClient.invalidateQueries({ queryKey: ["ai-reports"] });
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.error || "Couldn't generate a report for last month.");
+    onError: (err: unknown) => {
+      setError(getApiError(err) || "Couldn't generate a report for last month.");
     },
   });
 
@@ -54,8 +55,8 @@ export default function MonthlyReports() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-reports"] });
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.error || "Couldn't regenerate that report.");
+    onError: (err: unknown) => {
+      setError(getApiError(err) || "Couldn't regenerate that report.");
     },
   });
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getApiError } from "../lib/api";
 import { useMutation } from "@tanstack/react-query";
 import { Sparkles, X, Send, Bot } from "lucide-react";
 import { chatWithAssistant, type ChatMessage } from "../lib/ai";
@@ -22,8 +23,8 @@ export default function AIAssistant() {
     onSuccess: (reply) => {
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     },
-    onError: (err: any) => {
-      const message = err?.response?.data?.error;
+    onError: (err: unknown) => {
+      const message = getApiError(err);
       setError(message || "Couldn't reach the assistant. Try again.");
     },
   });

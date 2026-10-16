@@ -1,31 +1,28 @@
+# Local full-stack environment: Postgres + API + frontend.
+# Start:  docker compose up --build
+# Stop:   docker compose down        (add -v to also wipe the database)
+#
+# Every ${VAR:-default} below can be overridden from a root-level .env file
+# (see .env.example). The defaults make a zero-config first run work.
 services:
   postgres:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: finance_tracker
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_tracker}
+    # Bound to 127.0.0.1 so the database is reachable from your own machine
+    # (for DB tools) but not from other devices on your network.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-finance_tracker}"]
       interval: 5s
       timeout: 5s
       retries: 10
-
-  # Not used by the app yet (Phase 5 — dashboard-aggregate caching — hasn't
-  # been built). Included now so `docker compose up` gives you everything
-  # Phase 5 will need without touching this file again later.
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
 
   backend:
     build: ./backend
@@ -36,7 +33,9 @@ services:
     ports:
       - "4000:4000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/finance_tracker
+      # Inside the compose network the database host is the service name
+      # ("postgres"), not localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-finance_tracker}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me}
       FRONTEND_ORIGIN: http://localhost:5173
@@ -45,15 +44,19 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    # The healthcheck itself is defined in backend/Dockerfile.
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "5173:4173"
+      - "5173:8080"
 
 volumes:
   postgres-data:
-  redis-data:

@@ -85,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// The context file intentionally exports both the provider component and the
+// useAuth hook together; splitting them would just scatter one small concept.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

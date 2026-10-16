@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiError } from "../lib/api";
 import { useNavigate, Link } from "react-router-dom";
 import { Sprout, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -20,8 +21,8 @@ export default function SignupPage() {
     try {
       await signup(name, email, password);
       navigate("/dashboard");
-    } catch (err: any) {
-      const message = err?.response?.data?.error ?? "Couldn't create your account. Try again.";
+    } catch (err: unknown) {
+      const message = getApiError(err) ?? "Couldn't create your account. Try again.";
       setError(message);
     } finally {
       setIsLoading(false);

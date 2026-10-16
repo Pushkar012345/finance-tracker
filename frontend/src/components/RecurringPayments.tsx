@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiError } from "../lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Repeat, Plus, X, Trash2 } from "lucide-react";
 import {
@@ -49,8 +50,8 @@ export default function RecurringPayments() {
       resetForm();
       setIsOpen(false);
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.error || "Couldn't add that recurring payment.");
+    onError: (err: unknown) => {
+      setError(getApiError(err) || "Couldn't add that recurring payment.");
     },
   });
 

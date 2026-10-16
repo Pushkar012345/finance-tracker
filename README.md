@@ -41,8 +41,10 @@ An AI-powered personal finance tracker to manage transactions, budgets, savings 
 - Vitest + Supertest (integration tests against a real Postgres instance)
 
 **DevOps**
-- Docker & Docker Compose
-- GitHub Actions CI
+- Docker multi-stage builds (non-root users, built-in healthchecks) and Docker Compose
+- nginx serving the compiled frontend
+- GitHub Actions CI: type-check, lint, tests against real Postgres, plus a Docker job that boots the full stack and smoke-tests `/health` and `/health/ready`
+- Liveness (`/health`) and readiness (`/health/ready`, checks the database) endpoints
 - Deployable to Render / Railway (backend) and Vercel (frontend)
 
 ## 📂 Project Structure
