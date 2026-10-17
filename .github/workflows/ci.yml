@@ -146,22 +146,40 @@ jobs:
       - name: Wait for the deployment to become stable
         run: aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
 
-  # Frontend -> Vercel via deploy hook (a plain "POST this URL" link from the
-  # Vercel dashboard; no CLI or token). Will be replaced when the frontend
-  # moves to S3 + CloudFront.
-  deploy-frontend-vercel:
+  # Frontend -> AWS. Builds the Vite app with the AWS backend URL baked in
+  # (Vite reads VITE_API_URL at build time), syncs dist/ to the private S3
+  # bucket, then invalidates CloudFront so users get the new files at once.
+  deploy-frontend-aws:
     needs: [backend, frontend, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-2
+      S3_BUCKET: finance-tracker-fe-961394077583
+      CLOUDFRONT_DISTRIBUTION_ID: E1APMSXKHS33L9
+      VITE_API_URL: https://fi-9909d8242a7945519286a7cdd2428b98.ecs.ap-southeast-2.on.aws/api
     steps:
-      - name: Deploy frontend (Vercel)
-        env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        if: ${{ env.VERCEL_DEPLOY_HOOK_URL != '' }}
-        run: curl --fail -X POST "$VERCEL_DEPLOY_HOOK_URL"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Skip frontend deploy (no hook configured)
-        env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        if: ${{ env.VERCEL_DEPLOY_HOOK_URL == '' }}
-        run: echo "VERCEL_DEPLOY_HOOK_URL secret not set - skipping frontend deploy."
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload to S3
+        run: aws s3 sync frontend/dist "s3://$S3_BUCKET" --delete
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
