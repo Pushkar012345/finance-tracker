@@ -105,29 +105,55 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # Fires the two providers' deploy hooks once both test/build jobs pass on
-  # main. Deploy hooks are plain "POST this URL to trigger a deploy" links
-  # generated in the Render/Vercel dashboards — no CLI or API token needed,
-  # each provider then pulls the latest `main` and builds it themselves
-  # (Render uses backend/Dockerfile, Vercel uses frontend/vercel.json).
-  # Doesn't run on pull_request, only on a push that lands on main.
-  deploy:
+  # Backend -> AWS. Builds backend/Dockerfile, pushes it to ECR (tagged with
+  # the commit SHA and `latest`), then forces ECS to pull the new image.
+  # Uses a deploy-only IAM user (ECR push + ECS update on one service) whose
+  # keys live in GitHub secrets. Runs only on a push to main, after tests pass.
+  deploy-backend-aws:
+    needs: [backend, frontend, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-2
+      ECR_REPO: finance-tracker-backend
+      ECS_CLUSTER: default
+      ECS_SERVICE: finance-tracker-backend-bea9
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/$ECR_REPO"
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" backend
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Redeploy ECS service
+        run: |
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
+            --force-new-deployment --query 'service.serviceName' --output text
+
+      - name: Wait for the deployment to become stable
+        run: aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+
+  # Frontend -> Vercel via deploy hook (a plain "POST this URL" link from the
+  # Vercel dashboard; no CLI or token). Will be replaced when the frontend
+  # moves to S3 + CloudFront.
+  deploy-frontend-vercel:
     needs: [backend, frontend, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy backend (Render)
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
-        run: curl --fail -X POST "$RENDER_DEPLOY_HOOK_URL"
-
-      - name: Skip backend deploy (no hook configured)
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        if: ${{ env.RENDER_DEPLOY_HOOK_URL == '' }}
-        run: echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping backend deploy. See README > Deploying."
-
       - name: Deploy frontend (Vercel)
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
@@ -138,4 +164,4 @@ jobs:
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         if: ${{ env.VERCEL_DEPLOY_HOOK_URL == '' }}
-        run: echo "VERCEL_DEPLOY_HOOK_URL secret not set — skipping frontend deploy. See README > Deploying."
+        run: echo "VERCEL_DEPLOY_HOOK_URL secret not set - skipping frontend deploy."
